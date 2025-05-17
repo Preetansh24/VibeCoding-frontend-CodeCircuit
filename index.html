@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en" ng-app="productivityDashboard">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NexTask Dashboard | Productivity Hub</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.2/angular.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <script src="app.js"></script>
+</head>
+<body ng-controller="DashboardController">
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <div class="sidebar">
+            <div class="logo">
+                <div class="logo-icon"><i class="fas fa-bolt"></i></div>
+                <div class="logo-text">NexTask</div>
+            </div>
+            <nav>
+                <ul>
+                    <li ng-class="{active: currentView === 'dashboard'}" ng-click="changeView('dashboard')">
+                        <i class="fas fa-tachometer-alt"></i> Dashboard
+                    </li>
+                    <li ng-class="{active: currentView === 'tasks'}" ng-click="changeView('tasks')">
+                        <i class="fas fa-tasks"></i> Tasks
+                    </li>
+                    <li ng-class="{active: currentView === 'goals'}" ng-click="changeView('goals')">
+                        <i class="fas fa-bullseye"></i> Goals
+                    </li>
+                    <li ng-class="{active: currentView === 'analytics'}" ng-click="changeView('analytics')">
+                        <i class="fas fa-chart-line"></i> Analytics
+                    </li>
+                </ul>
+            </nav>
+            <div class="user-profile">
+                <div class="avatar" ng-style="{'background': 'linear-gradient(135deg, ' + user.avatarColor + ')'}">
+                    {{user.initials}}
+                </div>
+                <div class="user-info">
+                    <div class="name">{{user.name}}</div>
+                    <div class="role">{{user.role}}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="main-content">
+            <!-- Header -->
+            <header>
+                <h1>{{getViewTitle()}}</h1>
+                <div class="header-actions">
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" placeholder="Search...">
+                    </div>
+                    <div class="current-date">{{currentDate | date:'fullDate'}}</div>
+                </div>
+            </header>
+
+            <!-- Dashboard View -->
+            <div class="view-container" ng-show="currentView === 'dashboard'">
+                <!-- Stats Cards -->
+                <div class="stats-grid">
+                    <div class="stat-card" ng-repeat="stat in stats" ng-style="{'border-left': '4px solid ' + stat.color}">
+                        <div class="stat-icon" ng-style="{'background': stat.color}">
+                            <i ng-class="stat.icon"></i>
+                        </div>
+                        <div class="stat-info">
+                            <div class="stat-value">{{stat.value}}</div>
+                            <div class="stat-label">{{stat.label}}</div>
+                        </div>
+                        <div class="stat-trend" ng-class="{'positive': stat.trend > 0, 'negative': stat.trend < 0}">
+                            <i class="fas" ng-class="stat.trend > 0 ? 'fa-arrow-up' : 'fa-arrow-down'"></i>
+                            {{stat.trend > 0 ? '+' : ''}}{{stat.trend}}%
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main Dashboard Grid -->
+                <div class="dashboard-grid">
+                    <!-- Productivity Score -->
+                    <div class="dashboard-card wide">
+                        <div class="card-header">
+                            <h3>Productivity Score</h3>
+                        </div>
+                        <div class="score-container">
+                            <div class="score-display">
+                                <div class="score-circle">
+                                    <div class="score-value">{{productivityScore}}</div>
+                                    <div class="score-label">out of 100</div>
+                                </div>
+                                <div class="score-details">
+                                    <div class="score-metric" ng-repeat="metric in productivityMetrics">
+                                        <div class="metric-info">
+                                            <div class="metric-label">{{metric.label}}</div>
+                                            <div class="metric-value">{{metric.value}}%</div>
+                                        </div>
+                                        <div class="metric-bar">
+                                            <div class="metric-fill" ng-style="{'width': metric.value + '%', 'background': metric.color}"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Performance Chart -->
+                    <div class="dashboard-card">
+                        <div class="card-header">
+                            <h3>Weekly Performance</h3>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="performanceChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Task Distribution -->
+                    <div class="dashboard-card">
+                        <div class="card-header">
+                            <h3>Task Distribution</h3>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="taskChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Recent Activity -->
+                    <div class="dashboard-card">
+                        <div class="card-header">
+                            <h3>Recent Activity</h3>
+                        </div>
+                        <div class="activity-list">
+                            <div class="activity-item" ng-repeat="activity in recentActivities">
+                                <div class="activity-icon" ng-style="{'background': activity.color}">
+                                    <i ng-class="activity.icon"></i>
+                                </div>
+                                <div class="activity-content">
+                                    <div class="activity-message">{{activity.message}}</div>
+                                    <div class="activity-time">{{activity.time}}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Upcoming Deadlines -->
+                    <div class="dashboard-card">
+                        <div class="card-header">
+                            <h3>Upcoming Deadlines</h3>
+                        </div>
+                        <div class="deadlines-list">
+                            <div class="deadline-item" ng-repeat="deadline in upcomingDeadlines">
+                                <div class="deadline-date">
+                                    <div class="deadline-day">{{deadline.date | date:'d'}}</div>
+                                    <div class="deadline-month">{{deadline.date | date:'MMM'}}</div>
+                                </div>
+                                <div class="deadline-content">
+                                    <div class="deadline-title">{{deadline.title}}</div>
+                                    <div class="deadline-progress">
+                                        <div class="progress-bar">
+                                            <div class="progress-fill" ng-style="{'width': deadline.progress + '%'}"></div>
+                                        </div>
+                                        <div class="progress-value">{{deadline.progress}}%</div>
+                                    </div>
+                                </div>
+                                <div class="deadline-priority" ng-class="deadline.priority">{{deadline.priority}}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tasks View -->
+            <div class="view-container" ng-show="currentView === 'tasks'">
+                <div class="tasks-container">
+                    <h2>Task Management</h2>
+                    <!-- Task content would go here -->
+                </div>
+            </div>
+
+            <!-- Goals View -->
+            <div class="view-container" ng-show="currentView === 'goals'">
+                <div class="goals-container">
+                    <h2>Goal Tracking</h2>
+                    <!-- Goals content would go here -->
+                </div>
+            </div>
+
+            <!-- Analytics View -->
+            <div class="view-container" ng-show="currentView === 'analytics'">
+                <div class="analytics-container">
+                    <h2>Productivity Analytics</h2>
+                    <!-- Analytics content would go here -->
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
